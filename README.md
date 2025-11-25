@@ -21,34 +21,67 @@ A retro-style instant camera photobooth web app with a modern, clean UI inspired
 
 ## Setup
 
+### Local Development
+
 1. **Clone the repository**
    ```bash
    git clone https://github.com/jackyzhong0124/cursor-photobooth.git
-   cd photobooth
+   cd cursor-photobooth
    ```
 
-2. **Configure Supabase**
-   - Create a new Supabase project at [supabase.com](https://supabase.com)
-   - Create a storage bucket named `photos` with public read access
-   - Create a database table named `gallery` with the following schema:
-     ```sql
-     CREATE TABLE gallery (
-       id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-       url TEXT NOT NULL,
-       caption TEXT,
-       created_at TIMESTAMPTZ DEFAULT NOW()
-     );
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Configure Environment Variables**
+   ```bash
+   cp .env.example .env
+   ```
+   Then edit `.env` and add your Supabase credentials:
+   ```
+   VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+   VITE_SUPABASE_ANON_KEY=your-anon-key-here
+   ```
+
+4. **Run Development Server**
+   ```bash
+   npm run dev
+   ```
+
+### Production Deployment (Vercel)
+
+1. **Push to GitHub**
+   - Make sure your code is pushed to a GitHub repository
+
+2. **Import to Vercel**
+   - Go to [vercel.com](https://vercel.com)
+   - Click "Add New Project"
+   - Import your GitHub repository
+
+3. **Set Environment Variables in Vercel**
+   - Go to Project Settings > Environment Variables
+   - Add these variables:
      ```
-   - Get your Supabase URL and Anon Key from Project Settings > API
+     VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+     VITE_SUPABASE_ANON_KEY=your-anon-key-here
+     ```
+   - ⚠️ **Important:** The `VITE_` prefix is required for Vite to expose these to the client
 
-3. **Update Configuration**
-   - Open `app.js`
-   - Find the Supabase configuration section at the top of the file
-   - Replace `YOUR_SUPABASE_URL_HERE` and `YOUR_SUPABASE_ANON_KEY_HERE` with your actual credentials
+4. **Redeploy**
+   - After adding environment variables, trigger a redeploy from the Deployments tab
 
-4. **Deploy**
-   - You can host this on any static hosting service (Vercel, Netlify, GitHub Pages, etc.)
-   - Or simply open `index.html` in a browser (note: Supabase features require HTTPS in production)
+📖 **For detailed deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md)**
+
+### Supabase Setup
+
+1. Create a new Supabase project at [supabase.com](https://supabase.com)
+2. Run the SQL migration from `supabase_migration.sql` in your Supabase SQL Editor
+3. This will create:
+   - A `gallery` table for storing photo metadata
+   - A `photos` storage bucket for storing images
+   - Row Level Security policies for public read/write access
+4. Get your credentials from Project Settings > API
 
 ## Usage
 

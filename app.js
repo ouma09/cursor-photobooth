@@ -35,8 +35,9 @@ const EMAIL_API_URL = '/api/send-email';
 // Current polaroid being emailed
 let pendingEmailPolaroid = null;
 
-const printSound = new Audio('/polaroid-camera.mp3');
-printSound.volume = 0.6;
+// Disable sound for now - add sound file to public directory if needed
+// const printSound = new Audio('/polaroid-camera.mp3');
+// printSound.volume = 0.6;
 
 let demosCleared = false;
 let pendingUpload = null;
@@ -59,22 +60,23 @@ function getTodayDateString() {
   return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
 }
 
-const demoDate = getTodayDateString();
-const demos = [
-  { src: '/cat-cute-3.webp', rot: '-5deg', top: '30%', left: '30%' },
-  { src: '/cat-cute-2.webp', rot: '8deg', top: '35%', left: '45%' },
-  { src: '/cat-cute-1.webp', rot: '-12deg', top: '45%', left: '35%' },
-];
+// Demo feature disabled - add demo images to public directory if needed
+// const demoDate = getTodayDateString();
+// const demos = [
+//   { src: '/cat-cute-3.webp', rot: '-5deg', top: '30%', left: '30%' },
+//   { src: '/cat-cute-2.webp', rot: '8deg', top: '35%', left: '45%' },
+//   { src: '/cat-cute-1.webp', rot: '-12deg', top: '45%', left: '35%' },
+// ];
 
-function spawnDemos() {
-  desk.innerHTML = '';
-  demosCleared = false;
-  demos.forEach((d) => {
-    createPolaroidElement(d.src, demoDate, d.top, d.left, d.rot, true, false);
-  });
-}
+// function spawnDemos() {
+//   desk.innerHTML = '';
+//   demosCleared = false;
+//   demos.forEach((d) => {
+//     createPolaroidElement(d.src, demoDate, d.top, d.left, d.rot, true, false);
+//   });
+// }
 
-spawnDemos();
+// spawnDemos();
 
 function createPolaroidElement(imgSrc, dateStr, top, left, rot, isDemo = false, isNew = false) {
   const MAX_CAPTION_LENGTH = 27;
@@ -188,7 +190,7 @@ resetBtn.addEventListener('click', () => {
   demosCleared = false;
   desk.innerHTML = '';
   slot.innerHTML = '';
-  spawnDemos();
+  // spawnDemos(); // Disabled demo feature
 });
 
 downloadBtn.addEventListener('click', () => {
@@ -224,14 +226,14 @@ downloadBtn.addEventListener('click', () => {
 
 shutter.addEventListener('click', (e) => {
   e.preventDefault();
-  if (!demosCleared) {
-    clearDemos();
-    demosCleared = true;
-  }
+  // if (!demosCleared) {
+  //   clearDemos();
+  //   demosCleared = true;
+  // }
   flash.classList.add('flash-active');
   setTimeout(() => flash.classList.remove('flash-active'), 100);
-  printSound.currentTime = 0;
-  printSound.play().catch((e) => {});
+  // printSound.currentTime = 0;
+  // printSound.play().catch((e) => {});
   const ctx = canvas.getContext('2d');
   const size = Math.min(video.videoWidth, video.videoHeight);
   canvas.width = 400;
