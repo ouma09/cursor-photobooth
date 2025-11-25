@@ -8,15 +8,6 @@ const slot = document.getElementById('slot');
 const flash = document.getElementById('flash');
 const desk = document.getElementById('desk');
 const cameraZone = document.querySelector('.camera-zone');
-const confirmModal = document.getElementById('confirm-modal');
-const confirmYes = document.getElementById('confirm-yes');
-const confirmNo = document.getElementById('confirm-no');
-
-// Gallery Elements
-const galleryTrigger = document.getElementById('pin-board-trigger');
-const galleryModal = document.getElementById('pin-board-modal');
-const galleryClose = document.getElementById('gallery-close');
-const galleryGrid = document.getElementById('gallery-grid');
 
 // Email Modal Elements
 const emailModal = document.getElementById('email-modal');
@@ -37,15 +28,6 @@ let pendingEmailPolaroid = null;
 // printSound.volume = 0.6;
 
 let demosCleared = false;
-let pendingUpload = null;
-
-function hasConfirmedSharing() {
-  return localStorage.getItem('retroCameraShareConfirmed') === 'true';
-}
-
-function setShareConfirmed() {
-  localStorage.setItem('retroCameraShareConfirmed', 'true');
-}
 
 navigator.mediaDevices
   .getUserMedia({ video: { facingMode: 'user', width: 480, height: 480 } })
@@ -87,7 +69,6 @@ function createPolaroidElement(imgSrc, dateStr, top, left, rot, isDemo = false, 
       <div class="polaroid-front">
         <img src="${imgSrc}">
         <div class="polaroid-actions">
-            <!-- <button class="polaroid-share-btn">Add to Gallery</button> -->
             <button class="polaroid-email-btn" title="Send via Email">Email</button>
         </div>
         <button class="flip-btn" title="Flip to back">↻</button>
@@ -96,7 +77,6 @@ function createPolaroidElement(imgSrc, dateStr, top, left, rot, isDemo = false, 
       </div>
     <div class="polaroid-back">
        <div class="polaroid-actions">
-            <!-- <button class="polaroid-share-btn">Add to Gallery</button> -->
             <button class="polaroid-email-btn" title="Send via Email">Email</button>
         </div>
       <button class="flip-btn" title="Flip to front">↻</button>
@@ -123,22 +103,6 @@ function createPolaroidElement(imgSrc, dateStr, top, left, rot, isDemo = false, 
       e.stopPropagation();
       div.classList.toggle('flipped');
   }));
-
-
-  // Gallery feature temporarily disabled
-  // const shareBtns = div.querySelectorAll('.polaroid-share-btn');
-  // shareBtns.forEach(shareBtn => {
-  //   shareBtn.addEventListener('click', (e) => {
-  //     e.stopPropagation();
-  //     e.preventDefault();
-  //     if (hasConfirmedSharing()) {
-  //       uploadPolaroidImage(div, shareBtn);
-  //     } else {
-  //       pendingUpload = { polaroid: div, button: shareBtn };
-  //       confirmModal.classList.add('open');
-  //     }
-  //   });
-  // });
 
   const emailBtns = div.querySelectorAll('.polaroid-email-btn');
   emailBtns.forEach(btn => {
@@ -167,6 +131,19 @@ function createPolaroidElement(imgSrc, dateStr, top, left, rot, isDemo = false, 
 
     captionMain.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') e.preventDefault();
+    });
+
+    // Persist caption to database when user finishes editing
+    captionMain.addEventListener('blur', function () {
+      const caption = this.textContent.trim();
+      // Store pending caption on the element (for when upload completes)
+      div.dataset.pendingCaption = caption;
+      
+      const galleryId = div.dataset.galleryId;
+      if (galleryId) {
+        updatePhotoCaption(galleryId, caption);
+      }
+      // If galleryId not set yet, uploadPhotoToStorage will handle it when it completes
     });
   }
 
@@ -209,135 +186,98 @@ function ejectPhoto(src) {
   const p = createPolaroidElement(src, getTodayDateString(), null, null, null, false, true);
   p.classList.add('ejecting');
   slot.appendChild(p);
+  
+  // Auto-upload to Supabase storage in background
+  uploadPhotoToStorage(src, p);
 }
 
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-      if(confirmModal.classList.contains('open')) closeConfirmModal();
-      if(galleryModal.classList.contains('open')) closeGalleryModal();
-      if(emailModal.classList.contains('open')) closeEmailModal();
-  }
-});
-
-confirmYes.addEventListener('click', () => {
-  setShareConfirmed();
-  closeConfirmModal();
-  if (pendingUpload) {
-    uploadPolaroidImage(pendingUpload.polaroid, pendingUpload.button);
-    pendingUpload = null;
-  }
-});
-
-confirmNo.addEventListener('click', () => {
-  closeConfirmModal();
-  pendingUpload = null;
-});
-
-confirmModal.addEventListener('click', (e) => {
-  if (e.target === confirmModal) {
-    closeConfirmModal();
-    pendingUpload = null;
-  }
-});
-
-function closeConfirmModal() { confirmModal.classList.remove('open'); }
-
-// Gallery Modal Logic - temporarily disabled
-galleryTrigger.addEventListener('click', (e) => {
-    e.preventDefault();
-    alert('Gallery feature is temporarily disabled.');
-    // galleryModal.classList.add('open');
-    // fetchGallery();
-});
-
-galleryClose.addEventListener('click', closeGalleryModal);
-galleryModal.addEventListener('click', (e) => {
-    if (e.target === galleryModal) closeGalleryModal();
-});
-
-function closeGalleryModal() {
-    galleryModal.classList.remove('open');
-}
-
-async function uploadPolaroidImage(polaroidElement, clickedBtn) {
+/**
+ * Uploads photo to Supabase storage and records in gallery table.
+ * Runs in background (non-blocking) so UI remains responsive.
+ * @param {string} dataUrl - Base64 data URL of the photo
+ * @param {HTMLElement} polaroidElement - The polaroid DOM element to store the public URL on
+ */
+async function uploadPhotoToStorage(dataUrl, polaroidElement) {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
   
-  if(!supabaseUrl || !supabaseKey || supabaseUrl.includes('your-project') || supabaseKey.includes('your-anon')) {
-      alert("Supabase is not configured! Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file.");
-      return;
+  // Skip if Supabase is not configured
+  if (!supabaseUrl || !supabaseKey || supabaseUrl.includes('your-project') || supabaseKey.includes('your-anon')) {
+    console.warn('Supabase not configured - photo will not be persisted');
+    return;
   }
 
-  const img = polaroidElement.querySelector('img');
-  if (!img) return;
-  
-  const allShareBtns = polaroidElement.querySelectorAll('.polaroid-share-btn');
-  allShareBtns.forEach(btn => {
-      btn.classList.add('uploading');
-      btn.textContent = 'Uploading...';
-      btn.disabled = true;
-  });
-
   try {
-    const imgSrc = img.src;
-    let blob;
-    if (imgSrc.startsWith('data:')) {
-      const res = await fetch(imgSrc);
-      blob = await res.blob();
-    } else {
-       const res = await fetch(imgSrc);
-       blob = await res.blob();
-    }
+    // Convert data URL to blob
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
 
-    const fileName = `polaroids/${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+    // Generate unique filename
+    const fileName = `photos/${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+    
+    // Upload to Supabase storage
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('photos')
       .upload(fileName, blob, { contentType: 'image/jpeg' });
 
     if (uploadError) throw uploadError;
 
+    // Get public URL
     const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(fileName);
+    
+    // Store public URL on polaroid element for use by email feature
     polaroidElement.dataset.publicUrl = publicUrl;
 
-    const caption = polaroidElement.querySelector('.caption-main').innerText.trim();
+    // Check if user already entered a caption while uploading
+    const pendingCaption = polaroidElement.dataset.pendingCaption || '';
     
-    const { error: dbError } = await supabase.from('gallery').insert([{
-        url: publicUrl,
-        caption: caption,
-        created_at: new Date()
-    }]);
-    
-    if(dbError) throw dbError;
+    // Insert record into gallery table and get the ID back
+    const { data: dbData, error: dbError } = await supabase.from('gallery').insert([{
+      url: publicUrl,
+      caption: pendingCaption,
+      event_id: null,
+      created_at: new Date()
+    }]).select('id').single();
 
-    allShareBtns.forEach(btn => {
-      btn.classList.remove('uploading');
-      btn.classList.add('success');
-      btn.textContent = '✓ Published';
-    });
+    if (dbError) throw dbError;
 
-    setTimeout(() => {
-       allShareBtns.forEach(btn => {
-          btn.classList.remove('success');
-          btn.textContent = 'Add to Gallery';
-          btn.disabled = false;
-       });
-    }, 3000);
+    // Store gallery record ID on polaroid for caption updates
+    polaroidElement.dataset.galleryId = dbData.id;
+
+    console.log('Photo saved to Supabase:', publicUrl, 'ID:', dbData.id, 'Caption:', pendingCaption);
 
   } catch (error) {
-    console.error('Upload error:', error);
-    allShareBtns.forEach(btn => {
-       btn.classList.remove('uploading');
-       btn.textContent = '✗ Failed';
-    });
-    setTimeout(() => {
-      allShareBtns.forEach(btn => {
-          btn.textContent = 'Add to Gallery';
-          btn.disabled = false;
-      });
-    }, 3000);
-    alert("Upload failed: " + error.message);
+    console.error('Auto-upload error:', error);
+    // Silent fail - don't disrupt user experience
   }
 }
+
+/**
+ * Updates the caption for a photo in the gallery table.
+ * @param {string} galleryId - The gallery record ID
+ * @param {string} caption - The new caption text
+ */
+async function updatePhotoCaption(galleryId, caption) {
+  if (!galleryId) return;
+  
+  try {
+    const { error } = await supabase
+      .from('gallery')
+      .update({ caption })
+      .eq('id', galleryId);
+
+    if (error) throw error;
+    console.log('Caption updated for photo:', galleryId);
+  } catch (error) {
+    console.error('Caption update error:', error);
+  }
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+      if(emailModal.classList.contains('open')) closeEmailModal();
+  }
+});
 
 // Email Modal Functions
 function openEmailModal() {
@@ -439,45 +379,6 @@ emailForm.addEventListener('submit', async (e) => {
   }
 });
 
-async function fetchGallery() {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    
-    if(!supabaseUrl || !supabaseKey || supabaseUrl.includes('your-project') || supabaseKey.includes('your-anon')) {
-        galleryGrid.innerHTML = '<div style="padding:20px; text-align:center;">Supabase not configured. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file.</div>';
-        return;
-    }
-    
-    galleryGrid.innerHTML = '<div style="width:100%; text-align:center; color:#999;">Loading...</div>';
-    
-    const { data, error } = await supabase
-      .from('gallery')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50);
-      
-    if(error) {
-        galleryGrid.innerHTML = `<div style="color:red;">Error loading gallery: ${error.message}</div>`;
-        return;
-    }
-    
-    if(!data || data.length === 0) {
-        galleryGrid.innerHTML = '<div style="width:100%; text-align:center; padding:40px; color:#999;">Gallery is empty. Be the first to post!</div>';
-        return;
-    }
-    
-    galleryGrid.innerHTML = '';
-    data.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'gallery-item';
-        div.innerHTML = `
-            <img src="${item.url}" loading="lazy" />
-            <div class="gallery-caption">${item.caption || 'Untitled'}</div>
-        `;
-        galleryGrid.appendChild(div);
-    });
-}
-
 function makeDraggable(elm) {
   let startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
 
@@ -487,7 +388,6 @@ function makeDraggable(elm) {
   function dragStart(e) {
     if (
       e.target.closest('.caption-main') ||
-      // e.target.closest('.polaroid-share-btn') ||
       e.target.closest('.polaroid-email-btn') ||
       e.target.closest('.flip-btn')
     ) return;
