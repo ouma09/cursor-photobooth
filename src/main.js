@@ -157,6 +157,16 @@ function createPolaroidElement(imgSrc, dateStr, top, left, rot, isDemo = false, 
     captionMain.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') e.preventDefault();
     });
+
+    // Persist caption on blur
+    captionMain.addEventListener('blur', function () {
+      const caption = this.textContent.trim();
+      if (div.dataset.galleryId) {
+        updateGalleryRecord(div.dataset.galleryId, { caption });
+      } else if (caption) {
+        div.dataset.pendingCaption = caption;
+      }
+    });
   }
 
   // X Handle input/link toggle logic
@@ -331,6 +341,12 @@ async function uploadPhotoToStorage(dataUrl, polaroidElement) {
       if (polaroidElement.dataset.pendingXHandle) {
         await updateGalleryRecord(galleryId, { x_handle: polaroidElement.dataset.pendingXHandle });
         delete polaroidElement.dataset.pendingXHandle;
+      }
+
+      // Check for pending caption
+      if (polaroidElement.dataset.pendingCaption) {
+        await updateGalleryRecord(galleryId, { caption: polaroidElement.dataset.pendingCaption });
+        delete polaroidElement.dataset.pendingCaption;
       }
     }
 
