@@ -551,14 +551,6 @@ video#cam-feed {
   border-color: var(--text-secondary);
 }
 
-.x-qr-code {
-  width: 80px;
-  height: 80px;
-  margin-bottom: 8px;
-  border-radius: 4px;
-  display: none; /* Hidden by default, shown by JS when handle is set */
-}
-
 .flash {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;

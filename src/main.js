@@ -1,6 +1,5 @@
 // Import Supabase client
 import { supabase } from './lib/supabase.js';
-import QRCode from 'qrcode';
 
 const video = document.getElementById('cam-feed');
 const canvas = document.getElementById('canvas');
@@ -100,7 +99,6 @@ function createPolaroidElement(imgSrc, dateStr, top, left, rot, isDemo = false, 
       <button class="flip-btn" title="Flip to front">↻</button>
       <div class="x-profile-section">
         <div class="x-profile-label">Connect on X</div>
-        <img class="x-qr-code" src="" alt="X Profile QR" />
         <input type="text" class="x-handle-input" placeholder="@yourhandle" spellcheck="false" />
         <a class="x-profile-link" href="#" target="_blank" rel="noopener noreferrer">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
@@ -165,34 +163,18 @@ function createPolaroidElement(imgSrc, dateStr, top, left, rot, isDemo = false, 
   const xHandleInput = div.querySelector('.x-handle-input');
   const xProfileLink = div.querySelector('.x-profile-link');
   const xHandleDisplay = div.querySelector('.x-handle-display');
-  const xQrCode = div.querySelector('.x-qr-code');
 
-  async function setXHandleDisplay(handle) {
+  function setXHandleDisplay(handle) {
     if (handle) {
       div.dataset.xHandle = handle;
       xHandleDisplay.textContent = '@' + handle;
       xProfileLink.href = 'https://x.com/' + handle;
       xHandleInput.style.display = 'none';
       xProfileLink.style.display = 'flex';
-      
-      // Generate QR code
-      try {
-        const qrDataUrl = await QRCode.toDataURL('https://x.com/' + handle, {
-          width: 80,
-          margin: 1,
-          color: { dark: '#18181b', light: '#fbfbfb' }
-        });
-        xQrCode.src = qrDataUrl;
-        xQrCode.style.display = 'block';
-      } catch (err) {
-        console.error('QR code generation error:', err);
-        xQrCode.style.display = 'none';
-      }
     } else {
       delete div.dataset.xHandle;
       xHandleInput.style.display = 'block';
       xProfileLink.style.display = 'none';
-      xQrCode.style.display = 'none';
     }
   }
 
@@ -479,8 +461,7 @@ function makeDraggable(elm) {
       e.target.closest('.polaroid-email-btn') ||
       e.target.closest('.flip-btn') ||
       e.target.closest('.x-handle-input') ||
-      e.target.closest('.x-profile-link') ||
-      e.target.closest('.x-qr-code')
+      e.target.closest('.x-profile-link')
     ) return;
 
     e.preventDefault();
