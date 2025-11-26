@@ -182,6 +182,13 @@ function createPolaroidElement(imgSrc, dateStr, top, left, rot, isDemo = false, 
     const handle = normalizeXHandle(xHandleInput.value);
     if (handle) {
       setXHandleDisplay(handle);
+      
+      // Persist X handle
+      if (div.dataset.galleryId) {
+        updateGalleryRecord(div.dataset.galleryId, { x_handle: handle });
+      } else {
+        div.dataset.pendingXHandle = handle;
+      }
     }
   }
 
@@ -256,6 +263,20 @@ function ejectPhoto(src) {
   uploadPhotoToStorage(src, p);
 }
 
+async function updateGalleryRecord(id, updates) {
+  try {
+    const { error } = await supabase
+      .from('gallery')
+      .update(updates)
+      .eq('id', id);
+    
+    if (error) throw error;
+    console.log('Gallery updated:', updates);
+  } catch (error) {
+    console.error('Error updating gallery:', error);
+  }
+}
+
 /**
  * Uploads photo to Supabase storage and records in gallery table.
  * Runs in background (non-blocking) so UI remains responsive.
@@ -292,6 +313,26 @@ async function uploadPhotoToStorage(dataUrl, polaroidElement) {
     
     // Store public URL on polaroid element for use by email feature
     polaroidElement.dataset.publicUrl = publicUrl;
+
+    // Create gallery record
+    const { data: galleryData, error: galleryError } = await supabase
+      .from('gallery')
+      .insert([{ url: publicUrl }])
+      .select();
+
+    if (galleryError) throw galleryError;
+
+    if (galleryData && galleryData[0]) {
+      const galleryId = galleryData[0].id;
+      polaroidElement.dataset.galleryId = galleryId;
+      console.log('Gallery record created:', galleryId);
+
+      // Check for pending X handle
+      if (polaroidElement.dataset.pendingXHandle) {
+        await updateGalleryRecord(galleryId, { x_handle: polaroidElement.dataset.pendingXHandle });
+        delete polaroidElement.dataset.pendingXHandle;
+      }
+    }
 
     console.log('Photo saved to Supabase:', publicUrl);
 
