@@ -4,15 +4,12 @@ import { Resend } from 'resend';
 // EMAIL CONFIGURATION - Easy to customize
 // ============================================
 const EMAIL_CONFIG = {
-  from: 'UBC Startup Event <onboarding@resend.dev>',
-  subject: 'Your UBC Startup Event Photo 📸',
+  from: 'Photo Booth <noreply@polaroidme.xyz>',
+  subject: 'Your Photo 📸',
   html: `
     <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
-      <h2 style="color: #002145; text-align: center;">🎉 UBC Startup Event</h2>
-      <p style="text-align: center; color: #666;">Here's your photo from the event!</p>
-      <p style="text-align: center; color: #666; font-size: 14px;">
-        Thanks for joining us! 🚀
-      </p>
+      <h2 style="color: #333; text-align: center;">Your Photo</h2>
+      <p style="text-align: center; color: #666;">Here's your photo!</p>
       <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
       <p style="text-align: center; color: #999; font-size: 12px;">
         Your photo is attached below.
